@@ -13,10 +13,10 @@ task.spawn(function()
 end)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Smasher_V34_Final_Optimized"
+ScreenGui.Name = "Smasher_V35_English"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 10000 -- أعلى طبقة ممكنة
+ScreenGui.DisplayOrder = 10000
 
 -- States
 local pickingMode, reachMode, autoClicker, keyLock, delMode = false, false, false, false, false
@@ -41,17 +41,17 @@ MainFrame.Size = UDim2.new(0, 650, 0, 310)
 MainFrame.Position = UDim2.new(0.5, -325, 0.5, -155)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.Active = true
-MainFrame.Draggable = true -- للتحريك
+MainFrame.Draggable = true 
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame)
 Instance.new("UIStroke", MainFrame).Color = Color3.new(0, 1, 0)
 
--- [4] THE MENU (SUB-MENU) - تظهر فوق الكيبورد بوضوح
+-- [4] THE SUB-MENU (Hidden Features)
 local SubMenu = Instance.new("Frame")
 SubMenu.Size = UDim2.new(0.9, 0, 0, 120)
 SubMenu.Position = UDim2.new(0.05, 0, 0.2, 0)
 SubMenu.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-SubMenu.ZIndex = 50 -- طبقة عالية جداً
+SubMenu.ZIndex = 50 
 SubMenu.Visible = false
 SubMenu.Parent = MainFrame
 Instance.new("UICorner", SubMenu)
@@ -76,7 +76,7 @@ function createSub(txt, clr, func)
     b.MouseButton1Click:Connect(function() func(b) end)
 end
 
--- محتويات المنيو
+-- SubMenu Contents (All in English)
 createSub("REACH: OFF", Color3.fromRGB(120, 0, 200), function(b) reachMode = not reachMode b.Text = reachMode and "REACH: ON" or "REACH: OFF" end)
 createSub("AUTO CLICK: OFF", Color3.fromRGB(0, 120, 120), function(b) autoClicker = not autoClicker b.Text = autoClicker and "AUTO: ON" or "AUTO: OFF" end)
 createSub("FPS BOOST", Color3.fromRGB(60, 60, 60), function() for _,v in pairs(game:GetDescendants()) do if v:IsA("ParticleEmitter") or v:IsA("Trail") then v:Destroy() end end end)
@@ -84,7 +84,7 @@ createSub("REC MACRO", Color3.fromRGB(200, 0, 0), function(b) isRecording = not 
 createSub("PLAY MACRO", Color3.fromRGB(0, 200, 0), function() task.spawn(function() for _, d in ipairs(macroData) do task.wait(d.delay) VIM:SendKeyEvent(d.state, d.key, false, game) end end) end)
 createSub("SAVE MACRO", Color3.fromRGB(40, 40, 40), function() if not isfolder("KBD") then makefolder("KBD") end writefile("KBD/macro.json", HttpService:JSONEncode(macroData)) end)
 createSub("LOAD MACRO", Color3.fromRGB(40, 40, 40), function() if isfile("KBD/macro.json") then macroData = HttpService:JSONDecode(readfile("KBD/macro.json")) end end)
-createSub("DEL KEYS: OFF", Color3.fromRGB(150, 0, 0), function(b) delMode = not delMode b.Text = delMode and "DEL: ON" or "DEL: OFF" end)
+createSub("DEL MODE: OFF", Color3.fromRGB(150, 0, 0), function(b) delMode = not delMode b.Text = delMode and "DEL: ON" or "DEL: OFF" end)
 
 -- [5] TOP BAR
 local TopBar = Instance.new("Frame", MainFrame)
@@ -109,7 +109,7 @@ function createTop(txt, clr, func)
 end
 
 createTop("MENU", Color3.fromRGB(0, 120, 255), function() SubMenu.Visible = not SubMenu.Visible end)
-createTop("PICK KEY", Color3.fromRGB(160, 160, 0), function(b) pickingMode = not pickingMode b.Text = pickingMode and "SELECT..." or "PICK KEY" end)
+createTop("PICK KEY", Color3.fromRGB(160, 160, 0), function(b) pickingMode = not pickingMode b.Text = pickingMode and "SELECTING..." or "PICK KEY" end)
 createTop("KEY LOCK: OFF", Color3.fromRGB(0, 160, 120), function(b) keyLock = not keyLock b.Text = keyLock and "LOCKED" or "KEY LOCK: OFF" end)
 createTop("HIDE UI", Color3.fromRGB(70, 70, 70), function() MainFrame.Visible = false SubMenu.Visible = false OpenBtn.Visible = true end)
 createTop("CLOSE", Color3.fromRGB(200, 0, 0), function() ScreenGui:Destroy() end)
@@ -169,24 +169,15 @@ function makeKey(name, row, width, disp)
     end)
 end
 
--- بناء الكيبورد بنفس ترتيب الصور
+-- Keyboard Construction
 local r1 = makeRow()
 makeKey("Escape", r1, 55, "ESC")
 for i=1,9 do makeKey(tostring(i), r1, 40, tostring(i)) end; makeKey("Zero", r1, 40, "0")
-
-local r2 = makeRow()
-for _,v in ipairs({"Q","W","E","R","T","Y","U","I","O","P"}) do makeKey(v, r2) end
-
-local r3 = makeRow()
-for _,v in ipairs({"A","S","D","F","G","H","J","K","L"}) do makeKey(v, r3) end
+local r2 = makeRow() for _,v in ipairs({"Q","W","E","R","T","Y","U","I","O","P"}) do makeKey(v, r2) end
+local r3 = makeRow() for _,v in ipairs({"A","S","D","F","G","H","J","K","L"}) do makeKey(v, r3) end
 makeKey("Return", r3, 60, "ENTER")
-
-local r4 = makeRow()
-makeKey("LeftShift", r4, 65, "SHIFT")
-for _,v in ipairs({"Z","X","C","V","B","N","M"}) do makeKey(v, r4) end
-
-local r5 = makeRow()
-makeKey("Space", r5, 280, "SPACE")
+local r4 = makeRow() makeKey("LeftShift", r4, 65, "SHIFT") for _,v in ipairs({"Z","X","C","V","B","N","M"}) do makeKey(v, r4) end
+local r5 = makeRow() makeKey("Space", r5, 280, "SPACE")
 
 -- [7] LOOP (Reach Logic)
 RunService.Heartbeat:Connect(function()
