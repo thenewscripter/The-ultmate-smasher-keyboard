@@ -4,138 +4,99 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
 
--- [1] Anti-AFK
+-- [1] ANTI-AFK SYSTEM
 Players.LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Final_V18_Keyboard"
+ScreenGui.Name = "KBD_V21_PRO"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
 -- States
-local reachValue, speedValue = 10, 16
-local autoClicker, reachMode, pickingMode, deleteMode = false, false, false, false
+local reachValue, autoClicker, reachMode, pickingMode, deleteMode = 10, false, false, false, false
 local kbdLock, keyLock = false, false
 local isRecording, macroData, lastActionTime = false, {}, 0
 local externalKeys = {}
 
--- [2] Main Frame
+-- [2] MAIN FRAME
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 680, 0, 360)
-MainFrame.Position = UDim2.new(0.5, -340, 0.5, -180)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+MainFrame.Size = UDim2.new(0, 600, 0, 250)
+MainFrame.Position = UDim2.new(0.5, -300, 0.5, -125)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.Draggable = true
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame)
 
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Thickness = 2
-UIStroke.Color = Color3.new(1, 1, 1)
-UIStroke.Parent = MainFrame
-
-task.spawn(function()
+local Stroke = Instance.new("UIStroke")
+Stroke.Thickness = 2
+Stroke.Color = Color3.new(0, 1, 0)
+Stroke.Parent = MainFrame
+task.spawn(function() 
     while true do 
-        UIStroke.Color = Color3.fromHSV(tick() % 5 / 5, 0.8, 1) 
+        Stroke.Color = Color3.fromHSV(tick() % 5 / 5, 0.8, 1) 
         task.wait() 
-    end
+    end 
 end)
 
--- [3] Control Panel (Top Section)
-local Controls = Instance.new("Frame")
-Controls.Size = UDim2.new(1, -10, 0, 100)
-Controls.Position = UDim2.new(0, 5, 0, 5)
-Controls.BackgroundTransparency = 1
-Controls.Parent = MainFrame
+-- [3] POPUP SETTINGS MENU
+local PopupMenu = Instance.new("Frame")
+PopupMenu.Size = UDim2.new(1, 0, 0, 80)
+PopupMenu.Position = UDim2.new(0, 0, 0, -85)
+PopupMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+PopupMenu.Visible = false
+PopupMenu.Parent = MainFrame
+Instance.new("UICorner", PopupMenu)
+Instance.new("UIStroke", PopupMenu).Color = Color3.new(1,1,1)
 
-local UIGrid = Instance.new("UIGridLayout")
-UIGrid.CellSize = UDim2.new(0, 78, 0, 28)
-UIGrid.CellPadding = UDim2.new(0, 5, 0, 5)
-UIGrid.Parent = Controls
+local Grid = Instance.new("UIGridLayout")
+Grid.CellSize = UDim2.new(0, 70, 0, 25)
+Grid.CellPadding = UDim2.new(0, 5, 0, 5)
+Grid.Parent = PopupMenu
 
-local function createBtn(text, color, callback)
+local function createMenuBtn(text, color, callback)
     local b = Instance.new("TextButton")
     b.Text = text
     b.BackgroundColor3 = color
     b.TextColor3 = Color3.new(1, 1, 1)
     b.Font = Enum.Font.GothamBold
-    b.TextSize = 9
-    b.Parent = Controls
+    b.TextSize = 8
+    b.Parent = PopupMenu
     Instance.new("UICorner", b)
     b.MouseButton1Click:Connect(function() callback(b) end)
     return b
 end
 
--- Functions
-local pickBtn = createBtn("Pick Key", Color3.fromRGB(150, 150, 0), function(b) pickingMode = not pickingMode end)
-local delBtn = createBtn("Del Mode", Color3.fromRGB(150, 0, 0), function(b) deleteMode = not deleteMode end)
-local rchBtn = createBtn("Reach: OFF", Color3.fromRGB(100, 0, 150), function(b) reachMode = not reachMode end)
-local clkBtn = createBtn("Auto: OFF", Color3.fromRGB(0, 100, 100), function(b) autoClicker = not autoClicker end)
-local recBtn = createBtn("REC", Color3.fromRGB(200, 0, 0), function(b) 
-    isRecording = not isRecording 
-    if isRecording then macroData = {} lastActionTime = tick() end
+-- Menu Buttons
+createMenuBtn("PICK KEY", Color3.fromRGB(150, 150, 0), function() pickingMode = not pickingMode end)
+createMenuBtn("DEL KEY", Color3.fromRGB(150, 0, 0), function() deleteMode = not deleteMode end)
+local rchT = createMenuBtn("REACH: OFF", Color3.fromRGB(100, 0, 150), function() reachMode = not reachMode end)
+local clkT = createMenuBtn("AUTO: OFF", Color3.fromRGB(0, 100, 100), function() autoClicker = not autoClicker end)
+local recT = createMenuBtn("REC", Color3.fromRGB(200, 0, 0), function() isRecording = not isRecording if isRecording then macroData = {} lastActionTime = tick() end end)
+createMenuBtn("PLAY", Color3.fromRGB(0, 150, 0), function()
+    task.spawn(function() for _, d in ipairs(macroData) do task.wait(d.delay) VIM:SendKeyEvent(true, d.key, false, game) task.wait(0.02) VIM:SendKeyEvent(false, d.key, false, game) end end)
 end)
-createBtn("PLAY", Color3.fromRGB(0, 150, 0), function()
-    task.spawn(function()
-        for _, d in ipairs(macroData) do
-            task.wait(d.delay)
-            VIM:SendKeyEvent(true, d.key, false, game)
-            task.wait(0.02)
-            VIM:SendKeyEvent(false, d.key, false, game)
-        end
-    end)
+createMenuBtn("FPS BOOST", Color3.fromRGB(30, 30, 30), function() for _, v in pairs(game:GetDescendants()) do if v:IsA("ParticleEmitter") or v:IsA("Trail") then v:Destroy() end end end)
+createMenuBtn("LOCK KEYS", Color3.fromRGB(0, 100, 50), function() keyLock = not keyLock end)
+createMenuBtn("SAVE", Color3.fromRGB(60, 60, 60), function()
+    local d = {} for _, k in pairs(externalKeys) do if k.Parent then table.insert(d, {Name=k.Name, Pos={k.Position.X.Scale, k.Position.X.Offset, k.Position.Y.Scale, k.Position.Y.Offset}}) end end
+    writefile("Layout_V21.json", HttpService:JSONEncode(d))
 end)
-createBtn("CLR MACRO", Color3.fromRGB(50, 50, 50), function() macroData = {} end)
-createBtn("KBD LOCK", Color3.fromRGB(0, 80, 150), function() kbdLock = not kbdLock MainFrame.Draggable = not kbdLock end)
-createBtn("KEY LOCK", Color3.fromRGB(0, 120, 50), function() keyLock = not keyLock end)
-createBtn("FPS BOOST", Color3.fromRGB(20, 20, 20), function()
-    settings().Rendering.QualityLevel = 1
-    for _, v in pairs(game:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("PostProcessEffect") then v:Destroy() end
-    end
-end)
-createBtn("SAVE", Color3.fromRGB(70, 70, 70), function()
-    local data = {}
-    for _, k in pairs(externalKeys) do
-        if k.Parent then table.insert(data, {Name = k.Name, Pos = {k.Position.X.Scale, k.Position.X.Offset, k.Position.Y.Scale, k.Position.Y.Offset}}) end
-    end
-    writefile("V18_Layout.json", HttpService:JSONEncode(data))
-end)
-createBtn("LOAD", Color3.fromRGB(70, 70, 70), function()
+createMenuBtn("LOAD", Color3.fromRGB(60, 60, 60), function()
     pcall(function()
-        local data = HttpService:JSONDecode(readfile("V18_Layout.json"))
-        for _, v in pairs(externalKeys) do v:Destroy() end
-        externalKeys = {}
-        for _, info in pairs(data) do spawnExternal(info.Name, UDim2.new(info.Pos[1], info.Pos[2], info.Pos[3], info.Pos[4])) end
+        local d = HttpService:JSONDecode(readfile("Layout_V21.json"))
+        for _, v in pairs(externalKeys) do v:Destroy() end externalKeys = {}
+        for _, info in pairs(d) do spawnExternal(info.Name, UDim2.new(info.Pos[1], info.Pos[2], info.Pos[3], info.Pos[4])) end
     end)
 end)
-createBtn("CLOSE", Color3.fromRGB(150, 0, 0), function() MainFrame.Visible = false end)
 
--- [4] Key Spawner Logic
-function spawnExternal(name, pos)
-    local k = Instance.new("TextButton")
-    k.Name = name k.Text = name:sub(1,1) k.Size = UDim2.new(0, 45, 0, 45)
-    k.Position = pos or UDim2.new(0.5, 0, 0.4, 0)
-    k.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    k.TextColor3 = Color3.new(1, 1, 1)
-    k.Draggable = not keyLock
-    k.Parent = ScreenGui
-    Instance.new("UICorner", k)
-    local s = Instance.new("UIStroke") s.Parent = k
-    k.MouseButton1Down:Connect(function()
-        if deleteMode then k:Destroy() else VIM:SendKeyEvent(true, Enum.KeyCode[name], false, game) end
-    end)
-    k.MouseButton1Up:Connect(function() VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game) end)
-    table.insert(externalKeys, k)
-end
-
--- [5] Keyboard Layout
+-- [4] KEYBOARD SYSTEM
 local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, -20, 1, -120)
-Container.Position = UDim2.new(0, 10, 0, 110)
+Container.Size = UDim2.new(1, -10, 1, -10)
+Container.Position = UDim2.new(0, 5, 0, 5)
 Container.BackgroundTransparency = 1
 Container.Parent = MainFrame
 
@@ -152,30 +113,41 @@ local function makeKey(name, row, width, disp)
     k.Text = disp or name
     k.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     k.TextColor3 = Color3.new(1, 1, 1)
-    k.Font = Enum.Font.GothamBold
+    k.Font = Enum.Font.SourceSansBold
+    k.TextSize = 14
     k.Parent = row
     Instance.new("UICorner", k)
     k.MouseButton1Down:Connect(function()
         if pickingMode then spawnExternal(name) pickingMode = false else
             VIM:SendKeyEvent(true, Enum.KeyCode[name], false, game)
-            k.BackgroundColor3 = UIStroke.Color
             if isRecording then table.insert(macroData, {key = Enum.KeyCode[name], delay = tick() - lastActionTime}) lastActionTime = tick() end
         end
     end)
-    k.MouseButton1Up:Connect(function() VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game) k.BackgroundColor3 = Color3.fromRGB(30, 30, 30) end)
+    k.MouseButton1Up:Connect(function() VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game) end)
+    return k
 end
 
-local r1=createRow() local n={"One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Zero"} local nD={"1","2","3","4","5","6","7","8","9","0"} for i,v in ipairs(n) do makeKey(v, r1, 45, nD[i]) end
-local r2=createRow() for _,v in ipairs({"Q","W","E","R","T","Y","U","I","O","P"}) do makeKey(v, r2) end
-local r3=createRow() for _,v in ipairs({"A","S","D","F","G","H","J","K","L"}) do makeKey(v, r3) end
-local r4=createRow() makeKey("LeftShift", r4, 70, "Shift") for _,v in ipairs({"Z","X","C","V","B","N","M"}) do makeKey(v, r4) end
-local r5=createRow() makeKey("Space", r5, 300, "SPACE")
+-- Layout Build
+local r1 = createRow()
+local menuToggle = makeKey("Menu", r1, 60, "MENU")
+menuToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+menuToggle.MouseButton1Click:Connect(function() PopupMenu.Visible = not PopupMenu.Visible end)
 
--- [6] Logic Loop
+local n = {"One","Two","Three","Four","Five","Six","Seven","Eight","Nine"}
+local nD = {"1","2","3","4","5","6","7","8","9"}
+for i,v in ipairs(n) do makeKey(v, r1, 45, nD[i]) end
+
+local r2 = createRow() for _,v in ipairs({"Q","W","E","R","T","Y","U","I","O","P"}) do makeKey(v, r2) end
+local r3 = createRow() for _,v in ipairs({"A","S","D","F","G","H","J","K","L"}) do makeKey(v, r3) end
+local r4 = createRow() makeKey("LeftShift", r4, 70, "Shift") for _,v in ipairs({"Z","X","C","V","B","N","M"}) do makeKey(v, r4) end
+local r5 = createRow() makeKey("Space", r5, 300, "SPACE")
+makeKey("X", r5, 60, "CLOSE").MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+
+-- [5] LOGIC UPDATES
 RunService.RenderStepped:Connect(function()
-    rchBtn.Text = reachMode and "Reach: ON" or "Reach: OFF"
-    clkBtn.Text = autoClicker and "Auto: ON" or "Auto: OFF"
-    recBtn.Text = isRecording and "STOP" or "REC"
+    rchT.Text = reachMode and "REACH: ON" or "REACH: OFF"
+    clkT.Text = autoClicker and "AUTO: ON" or "AUTO: OFF"
+    recT.Text = isRecording and "STOP" or "REC"
     if reachMode then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
@@ -186,22 +158,17 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-task.spawn(function()
-    while task.wait(0.1) do
-        if autoClicker then
-            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-            task.wait(0.01)
-            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-        end
-    end
-end)
+function spawnExternal(name, pos)
+    local k = Instance.new("TextButton")
+    k.Name = name k.Text = name:sub(1,1) k.Size = UDim2.new(0, 45, 0, 45)
+    k.Position = pos or UDim2.new(0.5, 0, 0.4, 0)
+    k.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    k.TextColor3 = Color3.new(1, 1, 1)
+    k.Draggable = not keyLock
+    k.Parent = ScreenGui
+    Instance.new("UICorner", k)
+    k.MouseButton1Down:Connect(function() if deleteMode then k:Destroy() else VIM:SendKeyEvent(true, Enum.KeyCode[name], false, game) end end)
+    k.MouseButton1Up:Connect(function() VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game) end)
+    table.insert(externalKeys, k)
+end
 
--- Toggle Button
-local ShowBtn = Instance.new("TextButton")
-ShowBtn.Size = UDim2.new(0, 80, 0, 35)
-ShowBtn.Position = UDim2.new(0, 20, 0, 20)
-ShowBtn.Text = "OPEN"
-ShowBtn.Parent = ScreenGui
-ShowBtn.Visible = false
-ShowBtn.MouseButton1Click:Connect(function() MainFrame.Visible = true ShowBtn.Visible = false end)
-MainFrame:GetPropertyChangedSignal("Visible"):Connect(function() ShowBtn.Visible = not MainFrame.Visible end)
