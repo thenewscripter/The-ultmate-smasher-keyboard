@@ -13,12 +13,12 @@ task.spawn(function()
 end)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Smasher_V35_English"
+ScreenGui.Name = "Smasher_V37_DragLock"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 10000
 
--- States
+-- Global States
 local pickingMode, reachMode, autoClicker, keyLock, delMode = false, false, false, false, false
 local reachValue = 15
 local isRecording, macroData, lastActionTime = false, {}, 0
@@ -76,7 +76,7 @@ function createSub(txt, clr, func)
     b.MouseButton1Click:Connect(function() func(b) end)
 end
 
--- SubMenu Contents (All in English)
+-- SubMenu Contents
 createSub("REACH: OFF", Color3.fromRGB(120, 0, 200), function(b) reachMode = not reachMode b.Text = reachMode and "REACH: ON" or "REACH: OFF" end)
 createSub("AUTO CLICK: OFF", Color3.fromRGB(0, 120, 120), function(b) autoClicker = not autoClicker b.Text = autoClicker and "AUTO: ON" or "AUTO: OFF" end)
 createSub("FPS BOOST", Color3.fromRGB(60, 60, 60), function() for _,v in pairs(game:GetDescendants()) do if v:IsA("ParticleEmitter") or v:IsA("Trail") then v:Destroy() end end end)
@@ -110,7 +110,19 @@ end
 
 createTop("MENU", Color3.fromRGB(0, 120, 255), function() SubMenu.Visible = not SubMenu.Visible end)
 createTop("PICK KEY", Color3.fromRGB(160, 160, 0), function(b) pickingMode = not pickingMode b.Text = pickingMode and "SELECTING..." or "PICK KEY" end)
-createTop("KEY LOCK: OFF", Color3.fromRGB(0, 160, 120), function(b) keyLock = not keyLock b.Text = keyLock and "LOCKED" or "KEY LOCK: OFF" end)
+
+-- Updated Key Lock Logic (Locks Movement)
+createTop("KEY LOCK: OFF", Color3.fromRGB(0, 160, 120), function(b) 
+    keyLock = not keyLock 
+    b.Text = keyLock and "LOCKED" or "KEY LOCK: OFF" 
+    -- Toggle Draggable for all FloatingKeys
+    for _, obj in pairs(ScreenGui:GetChildren()) do
+        if obj:IsA("TextButton") and obj.Name == "FloatingKey" then
+            obj.Draggable = not keyLock
+        end
+    end
+end)
+
 createTop("HIDE UI", Color3.fromRGB(70, 70, 70), function() MainFrame.Visible = false SubMenu.Visible = false OpenBtn.Visible = true end)
 createTop("CLOSE", Color3.fromRGB(200, 0, 0), function() ScreenGui:Destroy() end)
 
@@ -143,33 +155,40 @@ function makeKey(name, row, width, disp)
     k.ZIndex = 2
     Instance.new("UICorner", k)
     
-    local wasPicking = false
     k.MouseButton1Down:Connect(function()
-        if keyLock then return end
         if pickingMode then
-            wasPicking = true
             local fk = Instance.new("TextButton", ScreenGui)
+            fk.Name = "FloatingKey" -- Important for Key Lock
             fk.Size = UDim2.new(0, 55, 0, 55)
             fk.Position = UDim2.new(0.5, 0, 0.4, 0)
-            fk.Text = name; fk.Draggable = true; fk.BackgroundColor3 = Color3.fromRGB(45,45,45); fk.TextColor3 = Color3.new(1,1,1); fk.ZIndex = 200
+            fk.Text = name
+            fk.Draggable = not keyLock -- Sets current state
+            fk.BackgroundColor3 = Color3.fromRGB(45,45,45)
+            fk.TextColor3 = Color3.new(1,1,1)
+            fk.ZIndex = 200
             Instance.new("UICorner", fk)
-            fk.MouseButton1Down:Connect(function() if delMode then fk:Destroy() else VIM:SendKeyEvent(true, Enum.KeyCode[name], false, game) end end)
-            fk.MouseButton1Up:Connect(function() VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game) end)
+            
+            fk.MouseButton1Down:Connect(function() 
+                if delMode then fk:Destroy() else VIM:SendKeyEvent(true, Enum.KeyCode[name], false, game) end 
+            end)
+            fk.MouseButton1Up:Connect(function() 
+                VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game) 
+            end)
+            
             pickingMode = false
         else
-            wasPicking = false
             VIM:SendKeyEvent(true, Enum.KeyCode[name], false, game)
             if isRecording then table.insert(macroData, {key = Enum.KeyCode[name], state = true, delay = tick() - lastActionTime}) lastActionTime = tick() end
         end
     end)
     k.MouseButton1Up:Connect(function()
-        if keyLock or wasPicking then return end
+        if pickingMode then return end
         VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game)
         if isRecording then table.insert(macroData, {key = Enum.KeyCode[name], state = false, delay = tick() - lastActionTime}) lastActionTime = tick() end
     end)
 end
 
--- Keyboard Construction
+-- Build Layout
 local r1 = makeRow()
 makeKey("Escape", r1, 55, "ESC")
 for i=1,9 do makeKey(tostring(i), r1, 40, tostring(i)) end; makeKey("Zero", r1, 40, "0")
@@ -179,7 +198,7 @@ makeKey("Return", r3, 60, "ENTER")
 local r4 = makeRow() makeKey("LeftShift", r4, 65, "SHIFT") for _,v in ipairs({"Z","X","C","V","B","N","M"}) do makeKey(v, r4) end
 local r5 = makeRow() makeKey("Space", r5, 280, "SPACE")
 
--- [7] LOOP (Reach Logic)
+-- [7] LOOPS
 RunService.Heartbeat:Connect(function()
     if reachMode then
         for _, p in pairs(Players:GetPlayers()) do
