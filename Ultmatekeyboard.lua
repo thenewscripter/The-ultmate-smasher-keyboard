@@ -1,161 +1,201 @@
 local VIM = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
 
--- [1] Force Input Function (For L, ESC, ENT)
-local function GamePress(key)
-    VIM:SendKeyEvent(true, key, false, game)
-    task.wait(0.05) -- Time needed for Roblox to register
-    VIM:SendKeyEvent(false, key, false, game)
-end
-
--- [2] Anti-AFK
+-- [1] Anti-AFK (Basic & Safe)
 Players.LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
+-- [2] GUI SETUP
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Smasher_V27_Stable"
+ScreenGui.Name = "Smasher_V30_Final"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 10 -- Make sure UI is on top
+ScreenGui.DisplayOrder = 9999 -- Ensures UI is always on top
 
--- States
-local reachValue, autoClicker, reachMode, pickingMode, deleteMode = 15, false, false, false, false
-local keyLock = false
-local isRecording, macroData, lastActionTime = false, {}, 0
-local externalKeys = {}
+-- Variables
+local pickingMode = false
+local reachMode = false
+local reachValue = 15
 
--- [3] MAIN FRAME
+-- [3] OPEN BUTTON (The Savior Button)
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Name = "OpenButton"
+OpenBtn.Size = UDim2.new(0, 70, 0, 40)
+OpenBtn.Position = UDim2.new(0, 5, 0.4, 0)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+OpenBtn.Text = "OPEN UI"
+OpenBtn.TextColor3 = Color3.new(1, 1, 1)
+OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.TextSize = 14
+OpenBtn.Visible = false -- Hidden by default
+OpenBtn.Parent = ScreenGui
+Instance.new("UICorner", OpenBtn)
+
+-- [4] MAIN FRAME
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 620, 0, 260)
-MainFrame.Position = UDim2.new(0.5, -310, 0.5, -130)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 650, 0, 290)
+MainFrame.Position = UDim2.new(0.5, -325, 0.5, -145)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.Draggable = true
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame)
+Instance.new("UIStroke", MainFrame).Color = Color3.new(0, 1, 0)
 
-local Stroke = Instance.new("UIStroke")
-Stroke.Thickness = 2
-Stroke.Color = Color3.new(0, 1, 0)
-Stroke.Parent = MainFrame
+-- [5] TOP MENU BAR
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 45)
+TopBar.BackgroundTransparency = 1
+TopBar.Parent = MainFrame
 
--- [4] POPUP SETTINGS
-local PopupMenu = Instance.new("Frame")
-PopupMenu.Size = UDim2.new(1, 0, 0, 90)
-PopupMenu.Position = UDim2.new(0, 0, 0, -95)
-PopupMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-PopupMenu.Visible = false
-PopupMenu.ZIndex = 10
-PopupMenu.Parent = MainFrame
-Instance.new("UICorner", PopupMenu)
+local MenuLayout = Instance.new("UIListLayout")
+MenuLayout.Parent = TopBar
+MenuLayout.FillDirection = Enum.FillDirection.Horizontal
+MenuLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+MenuLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+MenuLayout.Padding = UDim.new(0, 8)
 
-local Grid = Instance.new("UIGridLayout")
-Grid.CellSize = UDim2.new(0, 75, 0, 28)
-Grid.CellPadding = UDim2.new(0, 5, 0, 5)
-Grid.Parent = PopupMenu
-
-local function createMenuBtn(text, color, callback)
+-- Helper: Create Menu Button
+function createMenuBtn(text, color, func)
     local b = Instance.new("TextButton")
+    b.Size = UDim2.new(0, 90, 0, 30)
     b.Text = text
     b.BackgroundColor3 = color
-    b.TextColor3 = Color3.new(1, 1, 1)
+    b.TextColor3 = Color3.new(1,1,1)
     b.Font = Enum.Font.GothamBold
-    b.TextSize = 8
-    b.ZIndex = 11
-    b.Parent = PopupMenu
+    b.TextSize = 10
+    b.Parent = TopBar
     Instance.new("UICorner", b)
-    b.MouseButton1Click:Connect(function() callback(b) end)
-    return b
+    b.MouseButton1Click:Connect(function() func(b) end)
 end
 
-createMenuBtn("PICK KEY", Color3.fromRGB(120, 120, 0), function(b) pickingMode = not pickingMode b.Text = pickingMode and "PICKING..." or "PICK KEY" end)
-createMenuBtn("DEL KEY", Color3.fromRGB(120, 0, 0), function(b) deleteMode = not deleteMode b.Text = deleteMode and "DEL: ON" or "DEL KEY" end)
-local rchT = createMenuBtn("REACH: OFF", Color3.fromRGB(100, 0, 150), function() reachMode = not reachMode end)
-local clkT = createMenuBtn("AUTO: OFF", Color3.fromRGB(0, 100, 100), function() autoClicker = not autoClicker end)
-local recT = createMenuBtn("REC", Color3.fromRGB(180, 0, 0), function() isRecording = not isRecording if isRecording then macroData = {} lastActionTime = tick() end end)
-createMenuBtn("PLAY", Color3.fromRGB(0, 150, 0), function()
-    task.spawn(function()
-        for _, d in ipairs(macroData) do task.wait(d.delay) VIM:SendKeyEvent(d.state, d.key, false, game) end
-    end)
+-- Menu Logic
+createMenuBtn("PICK KEY", Color3.fromRGB(140, 140, 0), function(b) 
+    pickingMode = not pickingMode 
+    b.Text = pickingMode and "TAP A KEY..." or "PICK KEY"
 end)
-createMenuBtn("CLOSE GUI", Color3.fromRGB(60, 0, 0), function() ScreenGui:Destroy() end)
 
--- [5] KEYBOARD ENGINE
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, -10, 1, -10)
-Container.Position = UDim2.new(0, 5, 0, 5)
-Container.BackgroundTransparency = 1
-Container.Parent = MainFrame
-Instance.new("UIListLayout", Container).Padding = UDim.new(0, 4)
+createMenuBtn("REACH: OFF", Color3.fromRGB(100, 0, 150), function(b) 
+    reachMode = not reachMode 
+    b.Text = reachMode and "REACH: ON" or "REACH: OFF"
+end)
 
-local function createRow()
-    local r = Instance.new("Frame") r.Size = UDim2.new(1, 0, 0, 38) r.BackgroundTransparency = 1 r.Parent = Container
-    local l = Instance.new("UIListLayout") l.FillDirection = Enum.FillDirection.Horizontal l.Padding = UDim.new(0, 4) l.HorizontalAlignment = Enum.HorizontalAlignment.Center l.Parent = r
+createMenuBtn("HIDE UI", Color3.fromRGB(60, 60, 60), function() 
+    MainFrame.Visible = false 
+    OpenBtn.Visible = true -- Show the Open Button immediately
+end)
+
+createMenuBtn("CLOSE", Color3.fromRGB(160, 0, 0), function() 
+    ScreenGui:Destroy() 
+end)
+
+-- Open Button Logic
+OpenBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenBtn.Visible = false
+end)
+
+-- [6] FLOATING KEY SPAWNER
+function spawnFloatingKey(keyCodeName)
+    local k = Instance.new("TextButton")
+    k.Size = UDim2.new(0, 50, 0, 50)
+    k.Position = UDim2.new(0.5, 0, 0.3, 0)
+    k.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    k.Text = keyCodeName
+    k.TextColor3 = Color3.new(1,1,1)
+    k.Draggable = true
+    k.Parent = ScreenGui -- Parent to ScreenGui so it floats freely
+    Instance.new("UICorner", k)
+    
+    k.MouseButton1Down:Connect(function()
+        VIM:SendKeyEvent(true, Enum.KeyCode[keyCodeName], false, game)
+    end)
+    k.MouseButton1Up:Connect(function()
+        VIM:SendKeyEvent(false, Enum.KeyCode[keyCodeName], false, game)
+    end)
+end
+
+-- [7] KEYBOARD LAYOUT ENGINE
+local KeysContainer = Instance.new("Frame")
+KeysContainer.Size = UDim2.new(1, -20, 1, -55)
+KeysContainer.Position = UDim2.new(0, 10, 0, 50)
+KeysContainer.BackgroundTransparency = 1
+KeysContainer.Parent = MainFrame
+Instance.new("UIListLayout", KeysContainer).Padding = UDim.new(0, 5)
+
+function makeRow()
+    local r = Instance.new("Frame")
+    r.Size = UDim2.new(1, 0, 0, 38)
+    r.BackgroundTransparency = 1
+    r.Parent = KeysContainer
+    local l = Instance.new("UIListLayout", r)
+    l.FillDirection = Enum.FillDirection.Horizontal
+    l.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    l.Padding = UDim.new(0, 4)
     return r
 end
 
-local function makeKey(name, row, width, disp)
+function makeKey(name, row, width, display)
     local k = Instance.new("TextButton")
-    k.Size = UDim2.new(0, width or 42, 0, 34)
-    k.Text = disp or name
+    k.Size = UDim2.new(0, width or 42, 0, 35)
+    k.Text = display or name
     k.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    k.TextColor3 = Color3.new(1, 1, 1)
-    k.ZIndex = 5
+    k.TextColor3 = Color3.new(1,1,1)
     k.Parent = row
     Instance.new("UICorner", k)
     
     k.MouseButton1Down:Connect(function()
-        if pickingMode then spawnExternal(name) pickingMode = false else
+        if pickingMode then
+            spawnFloatingKey(name)
+            pickingMode = false -- Reset immediately
+            -- We don't press the key in-game when picking
+        else
             VIM:SendKeyEvent(true, Enum.KeyCode[name], false, game)
-            if isRecording then table.insert(macroData, {key = Enum.KeyCode[name], state = true, delay = tick() - lastActionTime}) lastActionTime = tick() end
         end
     end)
-    k.MouseButton1Up:Connect(function() 
-        VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game)
-        if isRecording then table.insert(macroData, {key = Enum.KeyCode[name], state = false, delay = tick() - lastActionTime}) lastActionTime = tick() end
+    
+    k.MouseButton1Up:Connect(function()
+        if not pickingMode then
+            VIM:SendKeyEvent(false, Enum.KeyCode[name], false, game)
+        end
     end)
 end
 
--- Construction
-local r1 = createRow()
-local menuBtn = Instance.new("TextButton", r1)
-menuBtn.Size = UDim2.new(0, 45, 0, 34); menuBtn.Text = "MENU"; menuBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200); menuBtn.ZIndex = 6; menuBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", menuBtn)
-menuBtn.MouseButton1Click:Connect(function() PopupMenu.Visible = not PopupMenu.Visible end)
+-- Building Rows
+local r1 = makeRow()
+makeKey("Escape", r1, 50, "ESC")
+for i=1,9 do makeKey(tostring(i), r1, 38, tostring(i)) end
+makeKey("Zero", r1, 38, "0")
 
-makeKey("Escape", r1, 45, "ESC")
-for i=1, 9 do makeKey(tostring(i), r1, 38, tostring(i)) end; makeKey("Zero", r1, 38, "0")
+local r2 = makeRow()
+for _,v in ipairs({"Q","W","E","R","T","Y","U","I","O","P"}) do makeKey(v, r2) end
 
-local r2 = createRow() for _,v in ipairs({"Q","W","E","R","T","Y","U","I","O","P"}) do makeKey(v, r2) end
-local r3 = createRow() for _,v in ipairs({"A","S","D","F","G","H","J","K","L"}) do makeKey(v, r3) end
-makeKey("Return", r3, 50, "ENT")
+local r3 = makeRow()
+for _,v in ipairs({"A","S","D","F","G","H","J","K","L"}) do makeKey(v, r3) end
+makeKey("Return", r3, 55, "ENTER")
 
-local r4 = createRow() makeKey("LeftShift", r4, 60, "Shift") for _,v in ipairs({"Z","X","C","V","B","N","M"}) do makeKey(v, r4) end
-makeKey("L", r4, 42, "L") 
+local r4 = makeRow()
+makeKey("LeftShift", r4, 60, "SHIFT")
+for _,v in ipairs({"Z","X","C","V","B","N","M"}) do makeKey(v, r4) end
 
-local r5 = createRow() makeKey("Space", r5, 250, "SPACE")
+local r5 = makeRow()
+makeKey("Space", r5, 250, "SPACE")
 
--- [6] RENDER & REACH
+-- [8] REACH LOOP
 RunService.RenderStepped:Connect(function()
-    rchT.Text = reachMode and "REACH: ON" or "REACH: OFF"
-    clkT.Text = autoClicker and "AUTO: ON" or "AUTO: OFF"
-    recT.Text = isRecording and "STOP" or "REC"
     if reachMode then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                 p.Character.HumanoidRootPart.Size = Vector3.new(reachValue, reachValue, reachValue)
-                p.Character.HumanoidRootPart.Transparency = 0.7
+                p.Character.HumanoidRootPart.Transparency = 0.8
                 p.Character.HumanoidRootPart.CanCollide = false
             end
         end
     end
 end)
 
-task.spawn(function()
-    while task.wait(0.1) do if autoClicker then VirtualUser:ClickButton1(Vector2.new(0,0)) end end
-end)
