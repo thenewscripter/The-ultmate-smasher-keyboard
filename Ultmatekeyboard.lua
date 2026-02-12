@@ -159,4 +159,3 @@ end)
 task.spawn(function()
     while task.wait(0.1) do if autoClicker then VirtualUser:ClickButton1(Vector2.new(0,0)) end end
 end)
-
